@@ -34,7 +34,7 @@ def clean_text(text):
 # ------------------------
 @st.cache_data
 def load_and_train():
-    df = pd.read_csv('news_data.csv')
+    df = pd.read_csv('news_data_final.csv')
     df['content'] = df['title'].fillna('') + " " + df['text'].fillna('')
     df['content'] = df['content'].apply(clean_text)
     df['label'] = pd.to_numeric(df['label'], errors='coerce')
@@ -182,5 +182,6 @@ with tab4:
         - Red = FAKE news
     """)
     st.markdown("**Note:** Make sure to replace `API_KEY` with your valid NewsAPI key for keyword search.")
+
 
 
