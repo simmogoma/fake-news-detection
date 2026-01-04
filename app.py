@@ -11,17 +11,30 @@ from sklearn.metrics import accuracy_score
 # --- 1. Page Configuration ---
 st.set_page_config(page_title="Fake News AI Detector", layout="wide")
 
-# --- 2. NLTK Setup ---
+# --- 2. NLTK Setup (Is section ko dhyan se update karein) ---
 @st.cache_resource
-def download_nltk_data():
-    nltk.download('stopwords')
-    nltk.download('punkt')
-    nltk.download('punkt_tab')
+def download_nltk_resources():
+    try:
+        # Har zaroori resource ko explicitly download karna
+        nltk.download('stopwords', quiet=True)
+        nltk.download('punkt', quiet=True)
+        nltk.download('punkt_tab', quiet=True)
+        return True
+    except Exception as e:
+        st.error(f"NLTK Download Error: {e}")
+        return False
 
-download_nltk_data()
-stop_words = set(stopwords.words('english'))
+# NLTK resources ko load karna
+if download_nltk_resources():
+    try:
+        stop_words = set(stopwords.words('english'))
+    except:
+        # Agar error aaye toh manual list use karna (Fail-safe)
+        stop_words = set(["i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your"])
+else:
+    stop_words = set([])
 
-# --- 3. Custom CSS (Bada Title aur Styling) ---
+# --- 3. Custom CSS ---
 st.markdown("""
     <style>
     .main-title { 
@@ -38,10 +51,6 @@ st.markdown("""
         color: #808495; 
         margin-bottom: 40px; 
     }
-    .stTabs [data-baseweb="tab-list"] { 
-        gap: 24px; 
-        justify-content: center; 
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -55,30 +64,21 @@ def clean_text(text):
 
 @st.cache_resource
 def load_and_train():
-    # File load karein
     df = pd.read_csv('news_data_final.csv')
-    
-    # Data preprocessing
     df['title'] = df['title'].fillna('')
     df['text'] = df['text'].fillna('')
     df['content'] = (df['title'] + " " + df['text']).apply(clean_text)
-    
-    # Label formatting
     df['label'] = pd.to_numeric(df['label'], errors='coerce')
     df = df.dropna(subset=['label']).astype({'label': int})
     
-    # Split data
     X_train, X_test, y_train, y_test = train_test_split(df['content'], df['label'], test_size=0.2, random_state=42)
     
-    # Vectorization
     vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=5000)
     tfidf_train = vectorizer.fit_transform(X_train)
     
-    # Model Training
     model = PassiveAggressiveClassifier(max_iter=50)
     model.fit(tfidf_train, y_train)
     
-    # Accuracy calculation
     tfidf_test = vectorizer.transform(X_test)
     acc = accuracy_score(y_test, model.predict(tfidf_test))
     
@@ -91,27 +91,22 @@ st.markdown('<p class="sub-title">Advanced Machine Learning Analysis</p>', unsaf
 try:
     model, vectorizer, acc = load_and_train()
     
-    # Sidebar Accuracy Metric
     st.sidebar.title("📊 Model Analytics")
     st.sidebar.metric("System Accuracy", f"{acc*100:.2f}%")
     st.sidebar.write("Algorithm: Passive Aggressive")
-    st.sidebar.info("Model is trained on balanced data (50% Real / 50% Fake)")
 
-    # Tabs layout (Ab sirf 2 tabs bache hain)
     tab1, tab2 = st.tabs(["🔍 Analysis Center", "📖 Instructions"])
 
     with tab1:
         st.subheader("Verify News Article")
-        user_input = st.text_area("Paste English News Content Here:", height=250, placeholder="Paste your article text here to verify its authenticity...")
+        user_input = st.text_area("Paste English News Content Here:", height=250)
         
         if st.button("RUN AI VERIFICATION", use_container_width=True):
             if user_input:
-                with st.spinner('Analyzing linguistic patterns...'):
+                with st.spinner('Analyzing...'):
                     cleaned = clean_text(user_input)
                     vec = vectorizer.transform([cleaned])
                     prediction = model.predict(vec)
-                    
-                    # Confidence Score
                     confidence = model.decision_function(vec)[0]
                     
                     st.divider()
@@ -122,19 +117,10 @@ try:
                         st.error("### 🚨 RESULT: THIS NEWS IS FAKE")
                         st.write(f"**AI Confidence Score:** {confidence:.2f}")
             else:
-                st.warning("Please enter some text first.")
+                st.warning("Please enter text.")
 
     with tab2:
-        st.markdown("""
-        ### Instructions
-        1. **Copy** a news article from a website or social media.
-        2. **Paste** the text into the 'Analysis Center' text box.
-        3. Click the **'RUN AI VERIFICATION'** button.
-        4. The system will analyze word patterns and tell you if it's likely **Real** or **Fake**.
-        
-        ---
-        **Note:** This model is optimized for English text. Accuracy may vary for very short sentences.
-        """)
+        st.write("1. Copy news. 2. Paste in Analysis Center. 3. Click Run AI Verification.")
 
 except Exception as e:
-    st.error(f"Error loading data: {e}")
+    st.error(f"Initialization Error: {e}")
