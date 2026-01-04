@@ -76,7 +76,7 @@ def load_and_train():
     vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=5000)
     tfidf_train = vectorizer.fit_transform(X_train)
     
-    model = PassiveAggressiveClassifier(max_iter=50)
+    model = PassiveAggressiveClassifier(max_iter=50, early_stopping=True, validation_fraction=0.1)
     model.fit(tfidf_train, y_train)
     
     tfidf_test = vectorizer.transform(X_test)
@@ -110,7 +110,7 @@ try:
                     confidence = model.decision_function(vec)[0]
                     
                     st.divider()
-                    if prediction[0] == 1:
+                    if prediction[0] == 0:
                         st.success("### ✅ RESULT: THIS NEWS IS REAL")
                         st.write(f"**AI Confidence Score:** {confidence:.2f}")
                     else:
@@ -124,5 +124,6 @@ try:
 
 except Exception as e:
     st.error(f"Initialization Error: {e}")
+
 
 
