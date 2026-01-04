@@ -23,7 +23,7 @@ def clean_text(text):
 @st.cache_resource
 def load_and_train():
     # File ka naam wahi rakhein jo GitHub par hai
-    df = pd.read_csv('news_data_10k.csv') 
+    df = pd.read_csv('news_data_final.csv') 
     
     # Data Cleaning
     df['title'] = df['title'].fillna('')
@@ -66,5 +66,6 @@ try:
             st.warning("Please enter some text.")
 except Exception as e:
     st.error(f"Error loading data: {e}")
+
 
 
