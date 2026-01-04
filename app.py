@@ -110,7 +110,7 @@ try:
                     confidence = model.decision_function(vec)[0]
                     
                     st.divider()
-                    if prediction[0] == 0:
+                    if prediction[0] == 1:
                         st.success("### ✅ RESULT: THIS NEWS IS REAL")
                         st.write(f"**AI Confidence Score:** {confidence:.2f}")
                     else:
@@ -124,4 +124,5 @@ try:
 
 except Exception as e:
     st.error(f"Initialization Error: {e}")
+
 
