@@ -34,9 +34,20 @@ def clean_text(text):
 # ------------------------
 @st.cache_data
 def load_and_train():
-    df = pd.read_csv('news_data_final.csv')
-    df['content'] = df['title'].fillna('') + " " + df['text'].fillna('')
-    df['content'] = df['content'].apply(clean_text)
+# 1. File load karein (check karein GitHub par naam yahi hai na?)
+df = pd.read_csv('news_data_final.csv') 
+
+# 2. Column names ko handle karein (title aur text ko jod kar 'content' banayein)
+# Dhyan dein: Aapke CSV mein 'title' aur 'text' columns hone chahiye
+df['title'] = df['title'].fillna('')
+df['text'] = df['text'].fillna('')
+df['content'] = df['title'] + " " + df['text']
+
+# 3. Text cleaning apply karein
+df['content'] = df['content'].apply(clean_text)
+
+# 4. Label ko sahi format mein layein
+if 'label' in df.columns:
     df['label'] = pd.to_numeric(df['label'], errors='coerce')
     df = df.dropna(subset=['label'])
     df['label'] = df['label'].astype(int)
@@ -182,6 +193,7 @@ with tab4:
         - Red = FAKE news
     """)
     st.markdown("**Note:** Make sure to replace `API_KEY` with your valid NewsAPI key for keyword search.")
+
 
 
 
