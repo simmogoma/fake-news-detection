@@ -5,3 +5,5 @@ scikit-learn
 nltk
 newspaper3k
 requests
+lxml[html_clean]
+
