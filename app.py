@@ -64,7 +64,7 @@ def clean_text(text):
 
 @st.cache_resource
 def load_and_train():
-    df = pd.read_csv('news_data_final.csv')
+    df = pd.read_csv('news_data.csv')
     df['title'] = df['title'].fillna('')
     df['text'] = df['text'].fillna('')
     df['content'] = (df['title'] + " " + df['text']).apply(clean_text)
@@ -124,6 +124,7 @@ try:
 
 except Exception as e:
     st.error(f"Initialization Error: {e}")
+
 
 
 
