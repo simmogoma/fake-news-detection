@@ -35,7 +35,7 @@ def clean_text(text):
 @st.cache_data
 def load_and_train():
 # 1. File load karein (check karein GitHub par naam yahi hai na?)
-df = pd.read_csv('news_data_final.csv') 
+    df = pd.read_csv('news_data_final.csv') 
 
 # 2. Column names ko handle karein (title aur text ko jod kar 'content' banayein)
 # Dhyan dein: Aapke CSV mein 'title' aur 'text' columns hone chahiye
@@ -193,6 +193,7 @@ with tab4:
         - Red = FAKE news
     """)
     st.markdown("**Note:** Make sure to replace `API_KEY` with your valid NewsAPI key for keyword search.")
+
 
 
 
