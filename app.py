@@ -7,7 +7,18 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import PassiveAggressiveClassifier
 from sklearn.model_selection import train_test_split
 
-# NLTK Downloads shuru mein hi karein
+# Page Configuration
+st.set_page_config(page_title="Fake News Detector", layout="centered")
+
+# Custom Branding CSS
+st.markdown("""
+    <style>
+    .main-title { font-size: 45px; font-weight: bold; color: #FFFFFF; text-align: center; margin-bottom: 0px; }
+    .sub-title { font-size: 18px; text-align: center; margin-bottom: 30px; color: #BBBBBB; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# NLTK Setup
 nltk.download('stopwords')
 nltk.download('punkt')
 nltk.download('punkt_tab')
@@ -22,48 +33,48 @@ def clean_text(text):
 
 @st.cache_resource
 def load_and_train():
-    # File ka naam wahi rakhein jo GitHub par hai
     df = pd.read_csv('news_data_final.csv') 
-    
-    # Data Cleaning
-    df['title'] = df['title'].fillna('')
-    df['text'] = df['text'].fillna('')
-    df['content'] = (df['title'] + " " + df['text']).apply(clean_text)
-    
-    # Label formatting
+    df['content'] = (df['title'].fillna('') + " " + df['text'].fillna('')).apply(clean_text)
     df['label'] = pd.to_numeric(df['label'], errors='coerce')
     df = df.dropna(subset=['label']).astype({'label': int})
     
-    # Model Training
-    X_train, X_test, y_train, y_test = train_test_split(df['content'], df['label'], test_size=0.2, random_state=7)
-    
     vectorizer = TfidfVectorizer()
-    tfidf_train = vectorizer.fit_transform(X_train)
-    
+    X = vectorizer.fit_transform(df['content'])
     model = PassiveAggressiveClassifier(max_iter=50)
-    model.fit(tfidf_train, y_train)
-    
+    model.fit(X, df['label'])
     return model, vectorizer
 
-# --- App Interface ---
-st.title("Fake News Detection System")
+# --- UI Interface ---
+st.markdown('<p class="main-title">📰 Normal vs K - Fake News Detector</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">Check if news is REAL or FAKE using AI</p>', unsafe_allow_html=True)
 
-# Model load karein
 try:
     model, vectorizer = load_and_train()
     
-    user_input = st.text_area("Enter News Article Content here:")
-    if st.button("Predict"):
-        if user_input:
-            cleaned_input = clean_text(user_input)
-            vectorized_input = vectorizer.transform([cleaned_input])
-            prediction = model.predict(vectorized_input)
-            
-            # Result dikhayein
-            result = "REAL" if prediction[0] == 1 else "FAKE"
-            st.subheader(f"The news is: {result}")
-        else:
-            st.warning("Please enter some text.")
-except Exception as e:
-    st.error(f"Error loading data: {e}")
+    # Tabs create karna (Second pic jaisa)
+    tab1, tab2, tab3, tab4 = st.tabs(["Custom Text", "Keyword Search", "URL Fetch", "Instructions"])
 
+    with tab1:
+        st.subheader("Test Custom News Text")
+        user_input = st.text_area("Paste news text here:", height=200)
+        if st.button("Check News"):
+            if user_input:
+                cleaned = clean_text(user_input)
+                vec = vectorizer.transform([cleaned])
+                pred = model.predict(vec)
+                result = "✅ REAL NEWS" if pred[0] == 1 else "🚨 FAKE NEWS"
+                st.success(result) if pred[0] == 1 else st.error(result)
+            else:
+                st.warning("Please enter text.")
+
+    with tab2:
+        st.info("Keyword search feature coming soon!")
+
+    with tab3:
+        st.info("URL fetching feature coming soon!")
+
+    with tab4:
+        st.write("1. Paste any news article.\n2. AI will analyze the language patterns.\n3. Result will show if it matches real or fake news data.")
+
+except Exception as e:
+    st.error(f"Error: {e}")
