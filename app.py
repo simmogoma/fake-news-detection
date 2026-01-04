@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 # NLTK Downloads shuru mein hi karein
 nltk.download('stopwords')
 nltk.download('punkt')
+nltk.download('punkt_tab')
 stop_words = set(stopwords.words('english'))
 
 def clean_text(text):
@@ -65,3 +66,4 @@ try:
             st.warning("Please enter some text.")
 except Exception as e:
     st.error(f"Error loading data: {e}")
+
