@@ -15,9 +15,12 @@ from newspaper import Article
 # ------------------------
 # NLTK Setup
 # ------------------------
-nltk.download('stopwords')
-nltk.download('punkt')
-stop_words = set(stopwords.words('english'))
+try:
+    nltk.data.find('corpora/stopwords')
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('stopwords')
+    nltk.download('punkt')
 
 def clean_text(text):
     text = text.lower()
@@ -179,3 +182,4 @@ with tab4:
         - Red = FAKE news
     """)
     st.markdown("**Note:** Make sure to replace `API_KEY` with your valid NewsAPI key for keyword search.")
+
