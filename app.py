@@ -6,12 +6,25 @@ from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import PassiveAggressiveClassifier
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
-# NLTK Downloads shuru mein hi karein
+# Page Config
+st.set_page_config(page_title="Fake News AI", layout="wide")
+
+# NLTK Setup
 nltk.download('stopwords')
 nltk.download('punkt')
 nltk.download('punkt_tab')
 stop_words = set(stopwords.words('english'))
+
+# Custom CSS for UI
+st.markdown("""
+    <style>
+    .main-title { font-size: 65px !important; font-weight: 800; color: #FF4B4B; text-align: center; margin-bottom: -20px; }
+    .sub-title { font-size: 22px; text-align: center; color: #808495; margin-bottom: 40px; }
+    .stTabs [data-baseweb="tab-list"] { gap: 24px; justify-content: center; }
+    </style>
+    """, unsafe_allow_html=True)
 
 def clean_text(text):
     text = str(text).lower()
@@ -22,51 +35,63 @@ def clean_text(text):
 
 @st.cache_resource
 def load_and_train():
-    # File ka naam wahi rakhein jo GitHub par hai
-    df = pd.read_csv('news_data_final.csv') 
+    df = pd.read_csv('news_data_final.csv')
+    df['content'] = (df['title'].fillna('') + " " + df['text'].fillna('')).apply(clean_text)
+    df = df.dropna(subset=['label'])
     
-    # Data Cleaning
-    df['title'] = df['title'].fillna('')
-    df['text'] = df['text'].fillna('')
-    df['content'] = (df['title'] + " " + df['text']).apply(clean_text)
+    X_train, X_test, y_train, y_test = train_test_split(df['content'], df['label'], test_size=0.2, random_state=42)
     
-    # Label formatting
-    df['label'] = pd.to_numeric(df['label'], errors='coerce')
-    df = df.dropna(subset=['label']).astype({'label': int})
-    
-    # Model Training
-    X_train, X_test, y_train, y_test = train_test_split(df['content'], df['label'], test_size=0.2, random_state=7)
-    
-    vectorizer = TfidfVectorizer()
-    tfidf_train = vectorizer.fit_transform(X_train)
+    # ngram_range=(1,2) model ko behtar patterns seekhne mein help karega
+    vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=5000)
+    X_train_tfidf = vectorizer.fit_transform(X_train)
     
     model = PassiveAggressiveClassifier(max_iter=50)
-    model.fit(tfidf_train, y_train)
+    model.fit(X_train_tfidf, y_train)
     
-    return model, vectorizer
+    # Calculate Accuracy
+    X_test_tfidf = vectorizer.transform(X_test)
+    acc = accuracy_score(y_test, model.predict(X_test_tfidf))
+    
+    return model, vectorizer, acc, df
 
-# --- App Interface ---
-st.title("Fake News Detection System")
+# UI Header
+st.markdown('<p class="main-title">Normal vs K - News Detector</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">Powered by Passive Aggressive Learning Algorithm</p>', unsafe_allow_html=True)
 
-# Model load karein
 try:
-    model, vectorizer = load_and_train()
-    
-    user_input = st.text_area("Enter News Article Content here:")
-    if st.button("Predict"):
-        if user_input:
-            cleaned_input = clean_text(user_input)
-            vectorized_input = vectorizer.transform([cleaned_input])
-            prediction = model.predict(vectorized_input)
-            
-            # Result dikhayein
-            result = "REAL" if prediction[0] == 0 else "FAKE"
-            st.subheader(f"The news is: {result}")
-        else:
-            st.warning("Please enter some text.")
+    model, vectorizer, acc, original_df = load_and_train()
+    st.sidebar.metric("System Accuracy", f"{acc*100:.2f}%")
+
+    tab1, tab2, tab3 = st.tabs(["🔍 Analysis Center", "📊 Database Search", "📖 Instructions"])
+
+    with tab1:
+        user_input = st.text_area("Paste English News Content Here:", height=250, placeholder="Type or paste article...")
+        if st.button("RUN AI VERIFICATION", use_container_width=True):
+            if user_input:
+                cleaned = clean_text(user_input)
+                vec = vectorizer.transform([cleaned])
+                prediction = model.predict(vec)
+                
+                # Confidence Score (Decision Function)
+                confidence = model.decision_function(vec)[0]
+                
+                if prediction[0] == 1:
+                    st.success(f"### ✅ RESULT: REAL NEWS")
+                    st.info(f"AI Confidence Level: Positive ({confidence:.2f})")
+                else:
+                    st.error(f"### 🚨 RESULT: FAKE NEWS")
+                    st.info(f"AI Confidence Level: Negative ({confidence:.2f})")
+            else:
+                st.warning("Please enter text to analyze.")
+
+    with tab2:
+        search = st.text_input("Search keywords in dataset:")
+        if search:
+            matches = original_df[original_df['content'].str.contains(search.lower())].head(10)
+            st.table(matches[['title', 'label']])
+
+    with tab3:
+        st.write("This system uses TF-IDF Vectorization and Passive Aggressive Classification to detect linguistic patterns common in fake news.")
+
 except Exception as e:
-    st.error(f"Error loading data: {e}")
-
-
-
-
+    st.error(f"Initialization Error: {e}")
