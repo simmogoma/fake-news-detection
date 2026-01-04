@@ -60,12 +60,13 @@ try:
             prediction = model.predict(vectorized_input)
             
             # Result dikhayein
-            result = "REAL" if prediction[0] == 1 else "FAKE"
+            result = "REAL" if prediction[0] == 0 else "FAKE"
             st.subheader(f"The news is: {result}")
         else:
             st.warning("Please enter some text.")
 except Exception as e:
     st.error(f"Error loading data: {e}")
+
 
 
 
