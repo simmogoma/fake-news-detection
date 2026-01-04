@@ -11,7 +11,7 @@ from sklearn.metrics import accuracy_score
 # --- 1. Page Configuration ---
 st.set_page_config(page_title="Fake News AI Detector", layout="wide")
 
-# --- 2. NLTK Setup (Error Fix) ---
+# --- 2. NLTK Setup ---
 @st.cache_resource
 def download_nltk_data():
     nltk.download('stopwords')
@@ -42,9 +42,6 @@ st.markdown("""
         gap: 24px; 
         justify-content: center; 
     }
-    div[data-testid="stMetricValue"] {
-        font-size: 28px;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -58,53 +55,58 @@ def clean_text(text):
 
 @st.cache_resource
 def load_and_train():
-    # File load karein (Ensure 10k balanced file is on GitHub)
+    # File load karein
     df = pd.read_csv('news_data_final.csv')
     
     # Data preprocessing
-    df['content'] = (df['title'].fillna('') + " " + df['text'].fillna('')).apply(clean_text)
-    df = df.dropna(subset=['label'])
+    df['title'] = df['title'].fillna('')
+    df['text'] = df['text'].fillna('')
+    df['content'] = (df['title'] + " " + df['text']).apply(clean_text)
+    
+    # Label formatting
+    df['label'] = pd.to_numeric(df['label'], errors='coerce')
+    df = df.dropna(subset=['label']).astype({'label': int})
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(df['content'], df['label'], test_size=0.2, random_state=42)
     
-    # Vectorization (ngram_range adds better context)
-    vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=10000)
-    X_train_tfidf = vectorizer.fit_transform(X_train)
+    # Vectorization
+    vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=5000)
+    tfidf_train = vectorizer.fit_transform(X_train)
     
     # Model Training
     model = PassiveAggressiveClassifier(max_iter=50)
-    model.fit(X_train_tfidf, y_train)
+    model.fit(tfidf_train, y_train)
     
     # Accuracy calculation
-    X_test_tfidf = vectorizer.transform(X_test)
-    acc = accuracy_score(y_test, model.predict(X_test_tfidf))
+    tfidf_test = vectorizer.transform(X_test)
+    acc = accuracy_score(y_test, model.predict(tfidf_test))
     
-    return model, vectorizer, acc, df
+    return model, vectorizer, acc
 
 # --- 5. App UI ---
 st.markdown('<p class="main-title">Normal vs K - News Detector</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">Advanced Machine Learning Analysis</p>', unsafe_allow_html=True)
 
 try:
-    # Model loading
-    model, vectorizer, acc, original_df = load_and_train()
+    model, vectorizer, acc = load_and_train()
     
-    # Sidebar stats
+    # Sidebar Accuracy Metric
     st.sidebar.title("📊 Model Analytics")
     st.sidebar.metric("System Accuracy", f"{acc*100:.2f}%")
-    st.sidebar.info("Model: Passive Aggressive Classifier")
-    
-    # Tabs layout
-    tab1, tab2, tab3 = st.tabs(["🔍 Analysis Center", "📊 Database Search", "📖 Instructions"])
+    st.sidebar.write("Algorithm: Passive Aggressive")
+    st.sidebar.info("Model is trained on balanced data (50% Real / 50% Fake)")
+
+    # Tabs layout (Ab sirf 2 tabs bache hain)
+    tab1, tab2 = st.tabs(["🔍 Analysis Center", "📖 Instructions"])
 
     with tab1:
-        st.subheader("Verify News Authenticity")
-        user_input = st.text_area("Paste the news article text here:", height=250, placeholder="Example: Scientists discover life on Mars...")
+        st.subheader("Verify News Article")
+        user_input = st.text_area("Paste English News Content Here:", height=250, placeholder="Paste your article text here to verify its authenticity...")
         
         if st.button("RUN AI VERIFICATION", use_container_width=True):
             if user_input:
-                with st.spinner('AI is analyzing linguistic patterns...'):
+                with st.spinner('Analyzing linguistic patterns...'):
                     cleaned = clean_text(user_input)
                     vec = vectorizer.transform([cleaned])
                     prediction = model.predict(vec)
@@ -115,31 +117,24 @@ try:
                     st.divider()
                     if prediction[0] == 1:
                         st.success("### ✅ RESULT: THIS NEWS IS REAL")
-                        st.write(f"**AI Confidence Score:** {confidence:.2f} (Positive score indicates Real)")
+                        st.write(f"**AI Confidence Score:** {confidence:.2f}")
                     else:
                         st.error("### 🚨 RESULT: THIS NEWS IS FAKE")
-                        st.write(f"**AI Confidence Score:** {confidence:.2f} (Negative score indicates Fake)")
+                        st.write(f"**AI Confidence Score:** {confidence:.2f}")
             else:
-                st.warning("⚠️ Please paste some news content first.")
+                st.warning("Please enter some text first.")
 
     with tab2:
-        st.subheader("Search Training Dataset")
-        search_query = st.text_input("Enter a keyword to find related records:")
-        if search_query:
-            results = original_df[original_df['content'].str.contains(search_query.lower())].head(15)
-            if not results.empty:
-                st.dataframe(results[['title', 'label']], use_container_width=True)
-            else:
-                st.info("No records found for this keyword.")
-
-    with tab3:
         st.markdown("""
-        ### How it Works?
-        1. **TF-IDF Vectorization:** Convert text into numerical patterns.
-        2. **N-Grams (1,2):** Analyzes single words and pairs of words.
-        3. **Passive Aggressive Classifier:** A high-speed algorithm ideal for large scale text classification.
-        4. **Dataset:** Trained on 10,000 balanced records of verified news.
+        ### Instructions
+        1. **Copy** a news article from a website or social media.
+        2. **Paste** the text into the 'Analysis Center' text box.
+        3. Click the **'RUN AI VERIFICATION'** button.
+        4. The system will analyze word patterns and tell you if it's likely **Real** or **Fake**.
+        
+        ---
+        **Note:** This model is optimized for English text. Accuracy may vary for very short sentences.
         """)
 
 except Exception as e:
-    st.error(f"❌ System Initialization Error: {e}")
+    st.error(f"Error loading data: {e}")
