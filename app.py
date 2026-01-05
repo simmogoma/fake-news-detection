@@ -21,6 +21,7 @@ st.set_page_config(page_title="Fake News AI Detector", layout="wide")
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
 
+from google.generativeai.types import RequestOptions
 gemini_model = genai.GenerativeModel("models/gemini-1.5-flash")
 
 # --------------------------------------------------
@@ -109,13 +110,14 @@ if st.button("RUN AI VERIFICATION", use_container_width=True):
 
             try:
                 response = gemini_model.generate_content(
-                    f"Check if this news is real or fake and explain shortly:\n\n{user_input}"
+                    f"Check if this news is real or fake and explain shortly:\n\n{user_input}", request_option=RequestOptions(api_version='v1')
                 )
                 st.info(response.text)
 
             except Exception as e:
                 st.error("Gemini API Error")
                 st.exception(e)
+
 
 
 
