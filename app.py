@@ -21,11 +21,11 @@ st.set_page_config(page_title="Fake News AI Detector", layout="wide")
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# PURANI LIBRARY KE LIYE SABSE STABLE MODEL NAME
+# Sabse stable model name purani libraries ke liye
 gemini_model = genai.GenerativeModel("gemini-pro")
 
 # --------------------------------------------------
-# NLTK SETUP (Scannable fix)
+# NLTK SETUP
 # --------------------------------------------------
 @st.cache_resource
 def setup_nltk():
@@ -104,16 +104,11 @@ if st.button("RUN AI VERIFICATION", use_container_width=True):
             st.subheader("🤖 Gemini AI Opinion")
 
             try:
-                # Simple call bina 'RequestOptions' ke taaki TypeError na aaye
+                # Simple call bina extra arguments ke
                 response = gemini_model.generate_content(
-                    f"Is this news real or fake? Explain in 2 sentences: {user_input}"
+                    f"Analyze if this news is real or fake. Explain in 2 sentences: {user_input}"
                 )
                 st.info(response.text)
             except Exception as e:
-                # Agar gemini-pro na chale toh flash try karein
-                try:
-                    alt_model = genai.GenerativeModel("gemini-1.5-flash")
-                    response = alt_model.generate_content(user_input)
-                    st.info(response.text)
-                except:
-                    st.error("Gemini API Error: Please check your API key or connection.")
+                st.error("Gemini API Error: Please check your API key or connection.")
+                st.exception(e)
