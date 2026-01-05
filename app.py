@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import re
 import nltk
+import google.generativeai as genai
+
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import PassiveAggressiveClassifier
@@ -11,50 +13,39 @@ from sklearn.metrics import accuracy_score
 # --- 1. Page Configuration ---
 st.set_page_config(page_title="Fake News AI Detector", layout="wide")
 
-# --- 2. NLTK Setup (Is section ko dhyan se update karein) ---
+# --- 2. Google Gemini API Setup ---
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+genai.configure(api_key=GOOGLE_API_KEY)
+gemini_model = genai.GenerativeModel("gemini-pro")
+
+# --- 3. NLTK Setup ---
 @st.cache_resource
 def download_nltk_resources():
-    try:
-        # Har zaroori resource ko explicitly download karna
-        nltk.download('stopwords', quiet=True)
-        nltk.download('punkt', quiet=True)
-        nltk.download('punkt_tab', quiet=True)
-        return True
-    except Exception as e:
-        st.error(f"NLTK Download Error: {e}")
-        return False
+    nltk.download('stopwords', quiet=True)
+    nltk.download('punkt', quiet=True)
+    return True
 
-# NLTK resources ko load karna
-if download_nltk_resources():
-    try:
-        stop_words = set(stopwords.words('english'))
-    except:
-        # Agar error aaye toh manual list use karna (Fail-safe)
-        stop_words = set(["i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your"])
-else:
-    stop_words = set([])
+download_nltk_resources()
+stop_words = set(stopwords.words('english'))
 
-# --- 3. Custom CSS ---
+# --- 4. Custom CSS ---
 st.markdown("""
-    <style>
-    .main-title { 
-        font-size: 70px !important; 
-        font-weight: 800 !important; 
-        color: #FF4B4B; 
-        text-align: center; 
-        margin-top: -40px;
-        margin-bottom: 0px; 
-    }
-    .sub-title { 
-        font-size: 24px !important; 
-        text-align: center; 
-        color: #808495; 
-        margin-bottom: 40px; 
-    }
-    </style>
-    """, unsafe_allow_html=True)
+<style>
+.main-title { 
+    font-size: 65px; 
+    font-weight: 800; 
+    color: #FF4B4B; 
+    text-align: center;
+}
+.sub-title { 
+    font-size: 22px; 
+    text-align: center; 
+    color: #808495; 
+}
+</style>
+""", unsafe_allow_html=True)
 
-# --- 4. Helper Functions ---
+# --- 5. Helper Functions ---
 def clean_text(text):
     text = str(text).lower()
     text = re.sub(r'[^a-z\s]', '', text)
@@ -64,69 +55,84 @@ def clean_text(text):
 
 @st.cache_resource
 def load_and_train():
-    df = pd.read_csv('news_data_final.csv')
-    df['title'] = df['title'].fillna('')
-    df['text'] = df['text'].fillna('')
-    df['content'] = (df['title'] + " " + df['text']).apply(clean_text)
-    df['label'] = pd.to_numeric(df['label'], errors='coerce')
-    df = df.dropna(subset=['label']).astype({'label': int})
-    
-    X_train, X_test, y_train, y_test = train_test_split(df['content'], df['label'], test_size=0.2, random_state=42)
-    
-    vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=5000)
-    tfidf_train = vectorizer.fit_transform(X_train)
-    
-    model = PassiveAggressiveClassifier(max_iter=50, early_stopping=True, validation_fraction=0.1)
-    model.fit(tfidf_train, y_train)
-    
-    tfidf_test = vectorizer.transform(X_test)
-    acc = accuracy_score(y_test, model.predict(tfidf_test))
-    
+    df = pd.read_csv("news_data_final.csv")
+
+    df["title"] = df["title"].fillna("")
+    df["text"] = df["text"].fillna("")
+    df["content"] = (df["title"] + " " + df["text"]).apply(clean_text)
+    df["label"] = df["label"].astype(int)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        df["content"], df["label"], test_size=0.2, random_state=42
+    )
+
+    vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
+    X_train_tfidf = vectorizer.fit_transform(X_train)
+
+    model = PassiveAggressiveClassifier(max_iter=50)
+    model.fit(X_train_tfidf, y_train)
+
+    X_test_tfidf = vectorizer.transform(X_test)
+    acc = accuracy_score(y_test, model.predict(X_test_tfidf))
+
     return model, vectorizer, acc
 
-# --- 5. App UI ---
-st.markdown('<p class="main-title">Normal vs K - News Detector</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">Advanced Machine Learning Analysis</p>', unsafe_allow_html=True)
+# --- 6. UI ---
+st.markdown('<p class="main-title">Fake News Detection System</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">Machine Learning + Google Gemini AI</p>', unsafe_allow_html=True)
 
-try:
-    model, vectorizer, acc = load_and_train()
-    
-    st.sidebar.title("📊 Model Analytics")
-    st.sidebar.metric("System Accuracy", f"{acc*100:.2f}%")
-    st.sidebar.write("Algorithm: Passive Aggressive")
+model, vectorizer, acc = load_and_train()
 
-    tab1, tab2 = st.tabs(["🔍 Analysis Center", "📖 Instructions"])
+st.sidebar.title("📊 Model Info")
+st.sidebar.metric("ML Accuracy", f"{acc*100:.2f}%")
+st.sidebar.write("Model: Passive Aggressive")
+st.sidebar.write("AI: Google Gemini")
 
-    with tab1:
-        st.subheader("Verify News Article")
-        user_input = st.text_area("Paste English News Content Here:", height=250)
-        
-        if st.button("RUN AI VERIFICATION", use_container_width=True):
-            if user_input:
-                with st.spinner('Analyzing...'):
-                    cleaned = clean_text(user_input)
-                    vec = vectorizer.transform([cleaned])
-                    prediction = model.predict(vec)
-                    confidence = model.decision_function(vec)[0]
-                    
-                    st.divider()
-                    if prediction[0] == 1:
-                        st.success("### ✅ RESULT: THIS NEWS IS REAL")
-                        st.write(f"**AI Confidence Score:** {confidence:.2f}")
-                    else:
-                        st.error("### 🚨 RESULT: THIS NEWS IS FAKE")
-                        st.write(f"**AI Confidence Score:** {confidence:.2f}")
-            else:
-                st.warning("Please enter text.")
+tab1, tab2 = st.tabs(["🔍 News Analysis", "📖 Instructions"])
 
-    with tab2:
-        st.write("1. Copy news. 2. Paste in Analysis Center. 3. Click Run AI Verification.")
+# --- 7. Analysis Tab ---
+with tab1:
+    user_input = st.text_area("Paste English News Text:", height=250)
 
-except Exception as e:
-    st.error(f"Initialization Error: {e}")
+    if st.button("RUN AI VERIFICATION", use_container_width=True):
+        if user_input.strip() == "":
+            st.warning("Please enter news content.")
+        else:
+            with st.spinner("Analyzing with ML + Gemini AI..."):
 
+                # ML Prediction
+                cleaned = clean_text(user_input)
+                vec = vectorizer.transform([cleaned])
+                ml_prediction = model.predict(vec)[0]
+                ml_confidence = model.decision_function(vec)[0]
 
+                # Gemini AI Analysis
+                prompt = f"""
+                Analyze the following news and tell whether it is FAKE or REAL.
+                Give a short reason.
 
+                News:
+                {user_input}
+                """
+                gemini_response = gemini_model.generate_content(prompt)
 
+                st.divider()
 
+                if ml_prediction == 1:
+                    st.success("✅ ML RESULT: REAL NEWS")
+                else:
+                    st.error("🚨 ML RESULT: FAKE NEWS")
 
+                st.write(f"**ML Confidence Score:** {ml_confidence:.2f}")
+
+                st.subheader("🤖 Gemini AI Opinion")
+                st.info(gemini_response.text)
+
+# --- 8. Instructions Tab ---
+with tab2:
+    st.write("""
+    **How to use this system:**
+    1. Paste English news text
+    2. Click RUN AI VERIFICATION
+    3. View ML + Google Gemini results
+    """)
