@@ -1,15 +1,5 @@
 streamlit
 pandas
-numpy
 scikit-learn
 nltk
-newspaper3k
-requests
-google-generativeai>=0.8.3
-lxml[html_clean]
-
-
-
-
-
-
+google-generativeai==0.8.3
