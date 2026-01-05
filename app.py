@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import nltk
 import google.generativeai as genai
+from google.generativeai.types import RequestOptions
 
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -16,26 +17,27 @@ from sklearn.metrics import accuracy_score
 st.set_page_config(page_title="Fake News AI Detector", layout="wide")
 
 # --------------------------------------------------
-# GEMINI API SETUP (STABLE SDK)
+# GEMINI API SETUP
 # --------------------------------------------------
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
 
-from google.generativeai.types import RequestOptions
-gemini_model = genai.GenerativeModel("models/gemini-1.5-flash")
+# Sahi model name aur configuration
+gemini_model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
 
 # --------------------------------------------------
 # NLTK SETUP
 # --------------------------------------------------
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
+@st.cache_resource
+def download_nltk_data():
+    try:
+        nltk.data.find('tokenizers/punkt')
+        nltk.data.find('corpora/stopwords')
+    except LookupError:
+        nltk.download("punkt")
+        nltk.download("stopwords")
 
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('stopwords')
+download_nltk_data()
 stop_words = set(stopwords.words("english"))
 
 # --------------------------------------------------
@@ -57,7 +59,6 @@ def clean_text(text):
 @st.cache_resource
 def load_and_train():
     df = pd.read_csv("news_data_final.csv")
-
     df["title"] = df["title"].fillna("")
     df["text"] = df["text"].fillna("")
     df["content"] = (df["title"] + " " + df["text"]).apply(clean_text)
@@ -83,7 +84,6 @@ st.title("📰 Fake News AI Detector")
 st.caption("Machine Learning + Google Gemini AI")
 
 model, vectorizer, acc = load_and_train()
-
 st.sidebar.metric("ML Accuracy", f"{acc*100:.2f}%")
 
 user_input = st.text_area("Paste English News Content", height=250)
@@ -109,15 +109,13 @@ if st.button("RUN AI VERIFICATION", use_container_width=True):
             st.subheader("🤖 Gemini AI Opinion")
 
             try:
+                # API version ko call ke waqt specify karna
                 response = gemini_model.generate_content(
-                    f"Check if this news is real or fake and explain shortly:\n\n{user_input}", request_option=RequestOptions(api_version='v1')
+                    f"Analyze if this news is real or fake and explain why in 2 sentences:\n\n{user_input}",
+                    request_options=RequestOptions(api_version='v1')
                 )
                 st.info(response.text)
 
             except Exception as e:
                 st.error("Gemini API Error")
                 st.exception(e)
-
-
-
-
