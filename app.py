@@ -10,29 +10,33 @@ from sklearn.linear_model import PassiveAggressiveClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
-# --- 1. Page Configuration ---
+# --------------------------------------------------
+# 1. PAGE CONFIG
+# --------------------------------------------------
 st.set_page_config(page_title="Fake News AI Detector", layout="wide")
 
-# --- 2. Google Gemini API Setup ---
+# --------------------------------------------------
+# 2. GOOGLE GEMINI API SETUP (STREAMLIT CLOUD)
+# --------------------------------------------------
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
 gemini_model = genai.GenerativeModel("gemini-pro")
 
-# --- 3. NLTK Setup ---
-@st.cache_resource
-def download_nltk_resources():
-    nltk.download('stopwords', quiet=True)
-    nltk.download('punkt', quiet=True)
-    return True
+# --------------------------------------------------
+# 3. NLTK SETUP (FIX-2 APPLIED)
+# --------------------------------------------------
+nltk.download("punkt")
+nltk.download("stopwords")
 
-download_nltk_resources()
-stop_words = set(stopwords.words('english'))
+stop_words = set(stopwords.words("english"))
 
-# --- 4. Custom CSS ---
+# --------------------------------------------------
+# 4. CUSTOM CSS
+# --------------------------------------------------
 st.markdown("""
 <style>
 .main-title { 
-    font-size: 65px; 
+    font-size: 60px; 
     font-weight: 800; 
     color: #FF4B4B; 
     text-align: center;
@@ -45,14 +49,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 5. Helper Functions ---
+# --------------------------------------------------
+# 5. TEXT CLEANING (FIX-1 APPLIED)
+# --------------------------------------------------
 def clean_text(text):
     text = str(text).lower()
-    text = re.sub(r'[^a-z\s]', '', text)
-    tokens = nltk.word_tokenize(text)
+    text = re.sub(r"[^a-z\s]", "", text)
+
+    try:
+        tokens = nltk.word_tokenize(text)
+    except:
+        # Streamlit Cloud fallback
+        tokens = text.split()
+
     tokens = [w for w in tokens if w not in stop_words]
     return " ".join(tokens)
 
+# --------------------------------------------------
+# 6. LOAD DATA & TRAIN MODEL
+# --------------------------------------------------
 @st.cache_resource
 def load_and_train():
     df = pd.read_csv("news_data_final.csv")
@@ -67,18 +82,20 @@ def load_and_train():
     )
 
     vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
-    X_train_tfidf = vectorizer.fit_transform(X_train)
+    X_train_vec = vectorizer.fit_transform(X_train)
 
     model = PassiveAggressiveClassifier(max_iter=50)
-    model.fit(X_train_tfidf, y_train)
+    model.fit(X_train_vec, y_train)
 
-    X_test_tfidf = vectorizer.transform(X_test)
-    acc = accuracy_score(y_test, model.predict(X_test_tfidf))
+    X_test_vec = vectorizer.transform(X_test)
+    acc = accuracy_score(y_test, model.predict(X_test_vec))
 
     return model, vectorizer, acc
 
-# --- 6. UI ---
-st.markdown('<p class="main-title">Fake News Detection System</p>', unsafe_allow_html=True)
+# --------------------------------------------------
+# 7. UI
+# --------------------------------------------------
+st.markdown('<p class="main-title">Fake News AI Detector</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">Machine Learning + Google Gemini AI</p>', unsafe_allow_html=True)
 
 model, vectorizer, acc = load_and_train()
@@ -88,11 +105,13 @@ st.sidebar.metric("ML Accuracy", f"{acc*100:.2f}%")
 st.sidebar.write("Model: Passive Aggressive")
 st.sidebar.write("AI: Google Gemini")
 
-tab1, tab2 = st.tabs(["🔍 News Analysis", "📖 Instructions"])
+tab1, tab2 = st.tabs(["🔍 Analysis Center", "📖 Instructions"])
 
-# --- 7. Analysis Tab ---
+# --------------------------------------------------
+# 8. ANALYSIS TAB
+# --------------------------------------------------
 with tab1:
-    user_input = st.text_area("Paste English News Text:", height=250)
+    user_input = st.text_area("Paste English News Content Here:", height=250)
 
     if st.button("RUN AI VERIFICATION", use_container_width=True):
         if user_input.strip() == "":
@@ -100,15 +119,14 @@ with tab1:
         else:
             with st.spinner("Analyzing with ML + Gemini AI..."):
 
-                # ML Prediction
                 cleaned = clean_text(user_input)
                 vec = vectorizer.transform([cleaned])
-                ml_prediction = model.predict(vec)[0]
-                ml_confidence = model.decision_function(vec)[0]
 
-                # Gemini AI Analysis
+                ml_pred = model.predict(vec)[0]
+                ml_conf = model.decision_function(vec)[0]
+
                 prompt = f"""
-                Analyze the following news and tell whether it is FAKE or REAL.
+                Analyze the following news and tell whether it is REAL or FAKE.
                 Give a short reason.
 
                 News:
@@ -118,21 +136,23 @@ with tab1:
 
                 st.divider()
 
-                if ml_prediction == 1:
+                if ml_pred == 1:
                     st.success("✅ ML RESULT: REAL NEWS")
                 else:
                     st.error("🚨 ML RESULT: FAKE NEWS")
 
-                st.write(f"**ML Confidence Score:** {ml_confidence:.2f}")
+                st.write(f"**ML Confidence Score:** {ml_conf:.2f}")
 
                 st.subheader("🤖 Gemini AI Opinion")
                 st.info(gemini_response.text)
 
-# --- 8. Instructions Tab ---
+# --------------------------------------------------
+# 9. INSTRUCTIONS TAB
+# --------------------------------------------------
 with tab2:
     st.write("""
-    **How to use this system:**
+    **How to use:**
     1. Paste English news text
     2. Click RUN AI VERIFICATION
-    3. View ML + Google Gemini results
+    3. View ML + Gemini AI result
     """)
