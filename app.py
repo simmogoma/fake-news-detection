@@ -21,7 +21,7 @@ st.set_page_config(page_title="Fake News AI Detector", layout="wide")
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
 
-gemini_model = genai.GenerativeModel("gemini-1.5-flash-latest")
+gemini_model = genai.GenerativeModel("gemini-1.5-flash-001")
 
 # --------------------------------------------------
 # NLTK SETUP
@@ -116,4 +116,5 @@ if st.button("RUN AI VERIFICATION", use_container_width=True):
             except Exception as e:
                 st.error("Gemini API Error")
                 st.exception(e)
+
 
