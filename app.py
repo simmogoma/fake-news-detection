@@ -152,7 +152,7 @@ News:
 
                 # ---- Gemini API Call (NEW & FIXED) ----
                 gemini_response = client.models.generate_content(
-                    model="models/gemini-1.5-flash",
+                    model="gemini-1.5-flash",
                     contents=prompt
                 )
 
@@ -186,3 +186,4 @@ with tab2:
    - ML model prediction
    - Gemini AI explanation
 """)
+
