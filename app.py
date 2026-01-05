@@ -21,23 +21,18 @@ st.set_page_config(page_title="Fake News AI Detector", layout="wide")
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# Force use of newer model names that work with the latest SDK
-try:
-    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
-except:
-    gemini_model = genai.GenerativeModel("gemini-pro")
+# Stable model for deployment
+model_name = "gemini-1.5-flash"
+gemini_model = genai.GenerativeModel(model_name)
 
 # --------------------------------------------------
 # NLTK SETUP
 # --------------------------------------------------
 @st.cache_resource
 def setup_nltk():
-    try:
-        nltk.download("punkt")
-        nltk.download("stopwords")
-        return set(stopwords.words("english"))
-    except:
-        return set()
+    nltk.download("punkt")
+    nltk.download("stopwords")
+    return set(stopwords.words("english"))
 
 stop_words = setup_nltk()
 
@@ -110,12 +105,10 @@ if st.button("RUN AI VERIFICATION", use_container_width=True):
             st.subheader("🤖 Gemini AI Opinion")
 
             try:
-                # Direct call - latest SDK works best with this
-                response = gemini_model.generate_content(
-                    f"Analyze this news and explain if it is real or fake in 2 sentences: {user_input}"
-                )
+                # Direct call for maximum compatibility
+                prompt = f"Is this news real or fake? Explain in 2 sentences: {user_input}"
+                response = gemini_model.generate_content(prompt)
                 st.info(response.text)
             except Exception as e:
-                # Final fallback for outdated environments
-                st.error("Gemini is currently unavailable in this environment.")
-                st.warning("Please reboot the app on Streamlit Cloud to update libraries.")
+                st.error("Gemini API Error. Please reboot the app to update environment.")
+                st.exception(e)
