@@ -5,5 +5,7 @@ scikit-learn
 nltk
 newspaper3k
 requests
+google-generativeai
 lxml[html_clean]
+
 
