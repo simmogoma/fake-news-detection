@@ -3,7 +3,6 @@ import pandas as pd
 import re
 import nltk
 import google.generativeai as genai
-from google.generativeai.types import RequestOptions
 
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -22,23 +21,19 @@ st.set_page_config(page_title="Fake News AI Detector", layout="wide")
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# Sahi model name aur configuration
-gemini_model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
+# PURANI LIBRARY KE LIYE SABSE STABLE MODEL NAME
+gemini_model = genai.GenerativeModel("gemini-pro")
 
 # --------------------------------------------------
-# NLTK SETUP
+# NLTK SETUP (Scannable fix)
 # --------------------------------------------------
 @st.cache_resource
-def download_nltk_data():
-    try:
-        nltk.data.find('tokenizers/punkt')
-        nltk.data.find('corpora/stopwords')
-    except LookupError:
-        nltk.download("punkt")
-        nltk.download("stopwords")
+def setup_nltk():
+    nltk.download("punkt")
+    nltk.download("stopwords")
+    return set(stopwords.words("english"))
 
-download_nltk_data()
-stop_words = set(stopwords.words("english"))
+stop_words = setup_nltk()
 
 # --------------------------------------------------
 # TEXT CLEANING
@@ -109,13 +104,16 @@ if st.button("RUN AI VERIFICATION", use_container_width=True):
             st.subheader("🤖 Gemini AI Opinion")
 
             try:
-                # API version ko call ke waqt specify karna
+                # Simple call bina 'RequestOptions' ke taaki TypeError na aaye
                 response = gemini_model.generate_content(
-                    f"Analyze if this news is real or fake and explain why in 2 sentences:\n\n{user_input}",
-                    request_options=RequestOptions(api_version='v1')
+                    f"Is this news real or fake? Explain in 2 sentences: {user_input}"
                 )
                 st.info(response.text)
-
             except Exception as e:
-                st.error("Gemini API Error")
-                st.exception(e)
+                # Agar gemini-pro na chale toh flash try karein
+                try:
+                    alt_model = genai.GenerativeModel("gemini-1.5-flash")
+                    response = alt_model.generate_content(user_input)
+                    st.info(response.text)
+                except:
+                    st.error("Gemini API Error: Please check your API key or connection.")
