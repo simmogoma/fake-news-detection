@@ -20,7 +20,7 @@ st.set_page_config(page_title="Fake News AI Detector", layout="wide")
 # --------------------------------------------------
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
-gemini_model = genai.GenerativeModel("gemini-pro")
+gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
 # --------------------------------------------------
 # 3. NLTK SETUP (FIX-2 APPLIED)
@@ -144,7 +144,7 @@ with tab1:
                 st.write(f"**ML Confidence Score:** {ml_conf:.2f}")
 
                 st.subheader("🤖 Gemini AI Opinion")
-                st.info(gemini_response.text)
+                st.info(gemini_response.text if gemini_response.text else "No response from gemini.")
 
 # --------------------------------------------------
 # 9. INSTRUCTIONS TAB
@@ -156,3 +156,4 @@ with tab2:
     2. Click RUN AI VERIFICATION
     3. View ML + Gemini AI result
     """)
+
